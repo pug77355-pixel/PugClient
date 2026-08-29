@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PUG Client</title>
+<meta name="description" content="PUG Client — a free and open source utility mod for Minecraft.">
+<meta name="theme-color" content="#0b0a0f">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0b0a0f;
+    --bg-elev:#131218;
+    --bg-card:#17151d;
+    --line:#26232d;
+    --line-soft:#1d1b23;
+    --white:#f2f2f2;
+    --white-bright:#ffffff;
+    --gray:#4a4a4a;
+    --text:#eae7f2;
+    --text-dim:#a8a2b8;
+    --text-faint:#69647a;
+    --glow: 0 0 40px rgba(255,255,255,0.18);
+    --ease: cubic-bezier(.16,.84,.44,1);
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html{scroll-behavior:smooth;}
+  ::selection{ background:#fff; color:#0b0a0f; }
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Inter', sans-serif;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+  h1,h2,h3,.brand{ font-family:'Space Grotesk', sans-serif; }
+  .mono{ font-family:'JetBrains Mono', monospace; }
+  a{ color:inherit; text-decoration:none; }
+  img{ max-width:100%; display:block; }
+
+  /* focus visibility for accessibility */
+  a:focus-visible, button:focus-visible{
+    outline:2px solid #fff; outline-offset:3px; border-radius:4px;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration:0.001ms !important; animation-iteration-count:1 !important; transition-duration:0.001ms !important; scroll-behavior:auto !important; }
+  }
+
+  /* ---------- Meteor field background ---------- */
+  #meteor-field{
+    position:fixed; inset:0; z-index:0; pointer-events:none;
+    background:
+      radial-gradient(ellipse 120% 55% at 50% -10%, rgba(255,255,255,0.09), transparent 60%),
+      radial-gradient(ellipse 80% 40% at 85% 15%, rgba(255,255,255,0.04), transparent 60%),
+      var(--bg);
+  }
+  .star{
+    position:absolute; width:2px; height:2px; border-radius:50%;
+    background:#fff;
+  }
+  .star.big{ width:3px; height:3px; box-shadow:0 0 6px 1px rgba(255,255,255,0.5); }
+  @keyframes twinkle{ 0%,100%{ opacity:var(--o,0.4);} 50%{ opacity:calc(var(--o,0.4) * 0.25);} }
+  .meteor{
+    position:absolute;
+    width:2px; height:2px;
+    background:#fff;
+    border-radius:50%;
+    box-shadow:0 0 6px 1px rgba(255,255,255,0.85);
+    animation:shoot linear infinite;
+  }
+  .meteor::before{
+    content:'';
+    position:absolute;
+    top:50%; right:0;
+    width:120px; height:1px;
+    transform:translateY(-50%);
+    background:linear-gradient(90deg, transparent, rgba(255,255,255,0.85));
+  }
+  @keyframes shoot{
+    0%{ transform:translate(0,0) rotate(215deg); opacity:0; }
+    5%{ opacity:1; }
+    80%{ opacity:1; }
+    100%{ transform:translate(-640px, 470px) rotate(215deg); opacity:0; }
+  }
+
+  main{ position:relative; z-index:1; }
+
+  /* ---------- Skip link ---------- */
+  .skip-link{
+    position:absolute; left:16px; top:-60px; z-index:100;
+    background:#fff; color:#0b0a0f; padding:10px 16px; border-radius:8px;
+    font-size:13px; font-weight:600; transition:top .2s;
+  }
+  .skip-link:focus{ top:16px; }
+
+  /* ---------- Nav ---------- */
+  .nav-wrap{
+    position:sticky; top:0; z-index:50;
+  }
+  .nav-blur{
+    position:absolute; inset:0;
+    backdrop-filter:blur(14px) saturate(120%);
+    -webkit-backdrop-filter:blur(14px) saturate(120%);
+    background:rgba(11,10,15,0.55);
+    border-bottom:1px solid var(--line-soft);
+    opacity:0; transition:opacity .3s var(--ease);
+  }
+  .nav-wrap.scrolled .nav-blur{ opacity:1; }
+  nav{
+    position:relative;
+    display:flex; align-items:center; gap:28px;
+    max-width:1080px; margin:0 auto;
+    padding:20px 24px;
+  }
+  .brand{ display:flex; align-items:center; gap:11px; font-weight:600; font-size:18px; margin-right:auto; }
+  .brand-mark{
+    width:30px; height:30px; border-radius:8px;
+    background:linear-gradient(145deg, #ffffff, #6b6b6b);
+    box-shadow:var(--glow);
+    flex:none;
+  }
+  nav .links{ display:flex; gap:26px; font-size:14px; color:var(--text-dim); }
+  nav .links a{ position:relative; padding:4px 0; transition:color .2s; }
+  nav .links a::after{
+    content:''; position:absolute; left:0; right:100%; bottom:-2px; height:1px;
+    background:#fff; transition:right .25s var(--ease);
+  }
+  nav .links a:hover{ color:var(--text); }
+  nav .links a:hover::after{ right:0; }
+  .btn-ghost{
+    border:1px solid var(--line); padding:8px 16px; border-radius:8px;
+    font-size:14px; color:var(--text-dim); transition:.2s;
+  }
+  .btn-ghost:hover{ border-color:#fff; color:var(--text); }
+
+  .menu-btn{ display:none; flex-direction:column; gap:5px; background:none; border:none; cursor:pointer; padding:6px; }
+  .menu-btn span{ width:20px; height:1.5px; background:#fff; display:block; transition:.25s var(--ease); }
+  .mobile-menu{
+    display:flex; flex-direction:column; gap:2px;
+    max-width:1080px; margin:0 auto; padding:0 24px;
+    position:relative;
+    max-height:0; opacity:0; overflow:hidden;
+    transition:max-height .3s var(--ease), opacity .25s var(--ease), padding-bottom .3s var(--ease);
+  }
+  .mobile-menu a{ padding:12px 4px; font-size:15px; color:var(--text-dim); border-top:1px solid var(--line-soft); }
+  .nav-wrap.open .mobile-menu{ max-height:260px; opacity:1; padding-bottom:18px; }
+  .nav-wrap.open .menu-btn span:nth-child(1){ transform:translateY(6.5px) rotate(45deg); }
+  .nav-wrap.open .menu-btn span:nth-child(2){ opacity:0; }
+  .nav-wrap.open .menu-btn span:nth-child(3){ transform:translateY(-6.5px) rotate(-45deg); }
+
+  @media (max-width:720px){
+    nav .links{ display:none; }
+    .menu-btn{ display:flex; }
+  }
+
+  /* ---------- reveal-on-scroll ---------- */
+  .reveal{ opacity:0; transform:translateY(18px); transition:opacity .7s var(--ease), transform .7s var(--ease); }
+  .reveal.in{ opacity:1; transform:translateY(0); }
+
+  /* ---------- Hero ---------- */
+  .hero{
+    max-width:1080px; margin:0 auto; padding:96px 24px 64px;
+    text-align:center;
+  }
+  .eyebrow{
+    display:inline-flex; align-items:center; gap:8px;
+    font-family:'JetBrains Mono', monospace; font-size:12px;
+    color:#fff; letter-spacing:0.08em;
+    border:1px solid var(--line); background:rgba(255,255,255,0.04);
+    padding:6px 14px; border-radius:999px; margin-bottom:28px;
+  }
+  .eyebrow .dot{ width:6px; height:6px; border-radius:50%; background:#fff; box-shadow:0 0 8px #fff; animation:pulse-dot 2s ease-in-out infinite; }
+  @keyframes pulse-dot{ 0%,100%{ opacity:1; } 50%{ opacity:0.35; } }
+  .hero h1{
+    font-size:clamp(40px, 7vw, 76px); font-weight:700; line-height:1.02;
+    letter-spacing:-0.02em;
+  }
+  .hero h1 .accent{
+    background:linear-gradient(120deg, #ffffff, #8f8f8f 55%, #ffffff);
+    background-size:200% auto;
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    animation:sheen 6s linear infinite;
+  }
+  @keyframes sheen{ to{ background-position:200% center; } }
+  .hero p{
+    max-width:520px; margin:22px auto 0; color:var(--text-dim); font-size:16px; line-height:1.6;
+  }
+  .hero-stats{
+    display:flex; justify-content:center; gap:48px; margin-top:44px;
+    font-family:'JetBrains Mono', monospace;
+  }
+  .stat-num{ font-size:26px; font-weight:600; color:var(--text); font-variant-numeric:tabular-nums; }
+  .stat-label{ font-size:11px; color:var(--text-faint); letter-spacing:0.06em; text-transform:uppercase; margin-top:4px; }
+  .hero-actions{ display:flex; justify-content:center; gap:14px; margin-top:40px; flex-wrap:wrap; }
+  .btn-primary{
+    background:#fff; color:#0b0a0f; font-weight:600; font-size:14px;
+    padding:13px 26px; border-radius:9px; box-shadow:0 10px 30px -10px rgba(255,255,255,0.4);
+    transition:.2s var(--ease); border:1px solid #fff;
+  }
+  .btn-primary:hover{ transform:translateY(-2px); background:#d8d8d8; }
+  .btn-primary:active{ transform:translateY(0) scale(.97); }
+  .btn-secondary{
+    border:1px solid var(--line); color:var(--text-dim); font-weight:600; font-size:14px;
+    padding:13px 26px; border-radius:9px; transition:.2s;
+  }
+  .btn-secondary:hover{ border-color:#fff; color:#fff; }
+  .btn-secondary:active{ transform:scale(.97); }
+
+  /* ---------- Feature strip ---------- */
+  .features{
+    max-width:1080px; margin:0 auto; padding:8px 24px 64px;
+    display:grid; grid-template-columns:repeat(3,1fr); gap:16px;
+  }
+  .feature{
+    background:var(--bg-card); border:1px solid var(--line); border-radius:14px;
+    padding:24px; transition:.25s var(--ease);
+  }
+  .feature:hover{ border-color:#4a4a4a; transform:translateY(-3px); }
+  .feature-icon{
+    width:36px; height:36px; border-radius:9px; margin-bottom:16px;
+    background:rgba(255,255,255,0.06); border:1px solid var(--line);
+    display:flex; align-items:center; justify-content:center;
+    transition:transform .3s var(--ease), background .3s var(--ease);
+  }
+  .feature-icon svg{ width:17px; height:17px; stroke:#fff; transition:transform .3s var(--ease); }
+  .feature:hover .feature-icon{ background:rgba(255,255,255,0.12); transform:scale(1.06); }
+  .feature:hover .feature-icon svg{ transform:rotate(-6deg) scale(1.08); }
+  .feature h3{ font-size:15px; font-weight:600; }
+  .feature p{ color:var(--text-faint); font-size:13.5px; margin-top:8px; line-height:1.55; }
+
+  @media (max-width:760px){ .features{ grid-template-columns:1fr; } }
+
+  /* ---------- Section shell ---------- */
+  section{ max-width:1080px; margin:0 auto; padding:64px 24px; }
+  .section-head{ margin-bottom:32px; }
+  .section-tag{ font-family:'JetBrains Mono', monospace; font-size:12px; color:#fff; letter-spacing:0.1em; text-transform:uppercase; }
+  .section-head h2{ font-size:30px; margin-top:8px; }
+  .section-head p{ color:var(--text-faint); font-size:14.5px; margin-top:10px; max-width:560px; line-height:1.6; }
+
+  /* ---------- Downloads ---------- */
+  .dl-card{
+    display:flex; align-items:center; gap:20px;
+    background:var(--bg-card); border:1px solid var(--line); border-radius:14px;
+    padding:22px 26px; margin-bottom:14px;
+    position:relative; overflow:hidden;
+    transition:.25s var(--ease);
+  }
+  .dl-card:hover{ border-color:#4a4a4a; transform:translateY(-2px); box-shadow:0 16px 34px -18px rgba(255,255,255,0.25); }
+  .dl-card.primary{ border-color:#3a3a3a; background:linear-gradient(145deg, rgba(255,255,255,0.05), var(--bg-card)); }
+  .dl-icon{
+    flex:none; width:46px; height:46px; border-radius:11px;
+    background:rgba(255,255,255,0.08); border:1px solid var(--line);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .dl-icon svg{ width:20px; height:20px; stroke:#fff; }
+  .dl-body{ flex:1; min-width:0; }
+  .dl-title{ font-weight:600; font-size:16px; }
+  .dl-badge{
+    display:inline-block; vertical-align:middle; margin-left:8px;
+    font-family:'JetBrains Mono', monospace; font-size:10px; font-weight:500;
+    letter-spacing:0.06em; text-transform:uppercase; color:var(--text-dim);
+    border:1px solid var(--line); background:rgba(255,255,255,0.05);
+    padding:3px 8px; border-radius:999px;
+  }
+  .dl-sub{ color:var(--text-faint); font-size:13px; margin-top:3px; font-family:'JetBrains Mono', monospace; }
+  .dl-cta{
+    position:relative; overflow:hidden;
+    flex:none; display:inline-flex; align-items:center; gap:8px;
+    background:#fff; color:#0b0a0f; font-weight:600; font-size:14px;
+    padding:11px 20px; border-radius:9px; transition:.2s var(--ease);
+    box-shadow:0 6px 20px -6px rgba(255,255,255,0.3);
+    border:1px solid #fff; cursor:pointer;
+    min-width:150px; justify-content:center;
+  }
+  .dl-cta:hover{ background:#d8d8d8; transform:translateY(-1px); }
+  .dl-cta:active{ transform:translateY(0) scale(.97); }
+  .dl-cta > *{ position:relative; z-index:1; }
+  .dl-cta svg{ width:15px; height:15px; flex:none; transition:transform .2s var(--ease); }
+  .dl-cta:hover svg.icon-dl{ transform:translateY(1px); }
+  .dl-cta.is-loading svg.icon-dl{ display:none; }
+  .dl-cta .spinner{ display:none; width:15px; height:15px; border-radius:50%; border:2px solid rgba(11,10,15,0.25); border-top-color:#0b0a0f; animation:spin .7s linear infinite; }
+  .dl-cta.is-loading .spinner{ display:inline-block; }
+  .dl-cta.is-done{ background:#fff; }
+  .dl-cta .fill{
+    position:absolute; z-index:0; inset:0; width:0%;
+    background:rgba(11,10,15,0.08);
+    transition:width .65s var(--ease);
+  }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+  .dl-note{ color:var(--text-faint); font-size:13px; margin-top:18px; line-height:1.6; }
+  .dl-note a{ color:#fff; border-bottom:1px solid var(--gray); }
+  .dl-progress{ font-size:11px; color:var(--text-faint); margin-top:2px; font-family:'JetBrains Mono', monospace; display:none; }
+  .dl-body.showing-progress .dl-sub{ display:none; }
+  .dl-body.showing-progress .dl-progress{ display:block; }
+
+  /* ---------- AV notice ---------- */
+  .av-notice{
+    display:flex; gap:14px; align-items:flex-start;
+    background:var(--bg-card); border:1px solid var(--line); border-left:2px solid #fff;
+    border-radius:12px; padding:18px 20px; margin-bottom:14px;
+  }
+  .av-notice-icon{
+    flex:none; width:32px; height:32px; border-radius:8px;
+    background:rgba(255,255,255,0.08); border:1px solid var(--line);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .av-notice-icon svg{ width:16px; height:16px; stroke:#fff; }
+  .av-notice h4{ font-size:14px; font-weight:600; margin-bottom:4px; }
+  .av-notice p{ color:var(--text-faint); font-size:13px; line-height:1.6; }
+  .av-notice p + p{ margin-top:8px; }
+  .av-notice a{ color:#fff; border-bottom:1px solid var(--gray); }
+
+  /* ---------- Terms modal ---------- */
+  .modal-overlay{
+    position:fixed; inset:0; z-index:300;
+    background:rgba(6,5,9,0.72);
+    backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+    display:flex; align-items:center; justify-content:center;
+    padding:24px;
+    opacity:0; pointer-events:none;
+    transition:opacity .25s var(--ease);
+  }
+  .modal-overlay.show{ opacity:1; pointer-events:auto; }
+  .modal-card{
+    width:100%; max-width:520px; max-height:85vh; overflow-y:auto;
+    background:var(--bg-card); border:1px solid var(--line);
+    border-radius:16px; padding:30px;
+    transform:translateY(14px) scale(.98); transition:transform .3s var(--ease);
+    box-shadow:0 30px 80px -20px rgba(0,0,0,0.6);
+  }
+  .modal-overlay.show .modal-card{ transform:translateY(0) scale(1); }
+  .modal-icon{
+    width:40px; height:40px; border-radius:10px; margin-bottom:18px;
+    background:rgba(255,255,255,0.08); border:1px solid var(--line);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .modal-icon svg{ width:19px; height:19px; stroke:#fff; }
+  .modal-card h3{ font-size:21px; margin-bottom:6px; }
+  .modal-sub{ color:var(--text-faint); font-size:13px; margin-bottom:20px; }
+  .modal-terms{
+    border:1px solid var(--line-soft); border-radius:10px;
+    padding:16px 18px; max-height:220px; overflow-y:auto;
+    background:var(--bg-elev); margin-bottom:20px;
+  }
+  .modal-terms h5{ font-size:12.5px; font-weight:600; margin-bottom:4px; }
+  .modal-terms p{ color:var(--text-faint); font-size:12.5px; line-height:1.6; }
+  .modal-terms h5 + p{ margin-bottom:14px; }
+  .modal-check{
+    display:flex; align-items:flex-start; gap:10px; cursor:pointer;
+    font-size:13.5px; color:var(--text-dim); line-height:1.5; margin-bottom:22px;
+    user-select:none;
+  }
+  .modal-check input{
+    appearance:none; -webkit-appearance:none;
+    width:18px; height:18px; flex:none; margin-top:1px;
+    border:1px solid var(--line); border-radius:5px;
+    background:var(--bg-elev); cursor:pointer; position:relative;
+    transition:.15s;
+  }
+  .modal-check input:checked{ background:#fff; border-color:#fff; }
+  .modal-check input:checked::after{
+    content:''; position:absolute; left:5px; top:1px;
+    width:5px; height:9px; border:solid #0b0a0f; border-width:0 2px 2px 0;
+    transform:rotate(45deg);
+  }
+  .modal-actions{ display:flex; gap:12px; }
+  .modal-actions .btn-secondary, .modal-actions .btn-primary{ flex:1; text-align:center; justify-content:center; display:flex; }
+  .modal-actions .btn-primary.is-disabled{
+    opacity:.4; cursor:not-allowed; pointer-events:none; transform:none !important;
+  }
+  .modal-actions button.btn-primary{ font-family:inherit; cursor:pointer; }
+
+  /* ---------- FAQ ---------- */
+  .faq-item{
+    border-bottom:1px solid var(--line-soft);
+  }
+  .faq-q{
+    width:100%; text-align:left; background:none; border:none; color:var(--text);
+    font-family:'Space Grotesk', sans-serif; font-size:16px; font-weight:600;
+    padding:20px 4px; cursor:pointer;
+    display:flex; align-items:center; justify-content:space-between; gap:16px;
+  }
+  .faq-q .plus{
+    flex:none; width:22px; height:22px; position:relative;
+  }
+  .faq-q .plus::before, .faq-q .plus::after{
+    content:''; position:absolute; background:#fff; top:50%; left:50%;
+    transform:translate(-50%,-50%); transition:.3s var(--ease);
+  }
+  .faq-q .plus::before{ width:14px; height:1.5px; }
+  .faq-q .plus::after{ width:1.5px; height:14px; }
+  .faq-item.open .faq-q .plus::after{ transform:translate(-50%,-50%) rotate(90deg); opacity:0; }
+  .faq-a{
+    max-height:0; overflow:hidden; transition:max-height .35s var(--ease);
+  }
+  .faq-a p{ color:var(--text-faint); font-size:14.5px; line-height:1.65; padding:0 4px 22px; max-width:640px; }
+
+  /* ---------- Dev team ---------- */
+  .team-grid{ display:flex; gap:20px; flex-wrap:wrap; }
+  .team-card{
+    flex:1 1 220px; background:var(--bg-card); border:1px solid var(--line);
+    border-radius:14px; padding:26px; text-align:center; transition:.25s var(--ease);
+  }
+  .team-card:hover{ border-color:#4a4a4a; transform:translateY(-3px); }
+  .avatar{
+    width:74px; height:74px; border-radius:50%; margin:0 auto 16px;
+    background:linear-gradient(145deg, #ffffff, #5c5c5c);
+    display:flex; align-items:center; justify-content:center;
+    font-weight:600; font-size:22px; color:#0b0a0f;
+    box-shadow:var(--glow);
+  }
+  .team-name{ font-weight:600; font-size:16px; }
+  .team-role{ color:var(--text-faint); font-size:13px; margin-top:4px; font-family:'JetBrains Mono', monospace; }
+
+  /* ---------- Footer ---------- */
+  footer{
+    border-top:1px solid var(--line-soft); margin-top:20px;
+    padding:44px 24px 60px; text-align:center;
+  }
+  .social-row{ display:flex; justify-content:center; gap:14px; margin-bottom:24px; flex-wrap:wrap; }
+  .social-pill{
+    display:flex; align-items:center; gap:8px;
+    border:1px solid var(--line); padding:9px 16px; border-radius:999px;
+    font-size:13px; color:var(--text-dim); transition:.2s;
+  }
+  .social-pill:hover{ border-color:#fff; color:#fff; }
+  .social-pill svg{ width:14px; height:14px; }
+  footer .copy{ color:var(--text-faint); font-size:12px; line-height:1.6; }
+
+  /* ---------- toast ---------- */
+  .toast{
+    position:fixed; left:50%; bottom:28px; transform:translate(-50%, 20px);
+    background:#fff; color:#0b0a0f; font-size:13px; font-weight:600;
+    padding:12px 20px; border-radius:9px; z-index:200;
+    opacity:0; pointer-events:none; transition:.3s var(--ease);
+    box-shadow:0 12px 30px -8px rgba(0,0,0,0.5);
+  }
+  .toast.show{ opacity:1; transform:translate(-50%, 0); }
+</style>
+</head>
+<body>
+
+<a class="skip-link" href="#downloads">Skip to downloads</a>
+<div id="meteor-field"></div>
+
+<main>
+  <div class="nav-wrap" id="navWrap">
+    <div class="nav-blur"></div>
+    <nav>
+      <a class="brand" href="#top">
+        <div class="brand-mark"></div>
+        PUG Client
+      </a>
+      <div class="links">
+        <a href="#top">Home</a>
+        <a href="#faq">FAQ</a>
+        <a href="#downloads">Downloads</a>
+        <a href="#team">Team</a>
+      </div>
+      <button class="menu-btn" id="menuBtn" aria-label="Toggle menu" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+    </nav>
+    <div class="mobile-menu" id="mobileMenu">
+      <a href="#top">Home</a>
+      <a href="#faq">FAQ</a>
+      <a href="#downloads">Downloads</a>
+      <a href="#team">Team</a>
+    </div>
+  </div>
+
+  <section class="hero" id="top">
+    <div class="eyebrow"><span class="dot"></span> BUILT ON FABRIC · FOR 1.21</div>
+    <h1>Free, open source<br><span class="accent">Minecraft utility mod</span></h1>
+    <p>PUG Client is a free and open source utility mod for Minecraft that lets you fly through the game exactly how you want.</p>
+    <div class="hero-actions">
+      <a href="#downloads" class="btn-primary">Download PUG Client</a>
+      <a href="#faq" class="btn-secondary">Read the FAQ</a>
+    </div>
+    <div class="hero-stats">
+      <div>
+        <div class="stat-num">1.21</div>
+        <div class="stat-label">Minecraft Version</div>
+      </div>
+      <div>
+        <div class="stat-num">GPL-3.0</div>
+        <div class="stat-label">License</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="features">
+    <div class="feature reveal">
+      <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h7l-1 8 11-14h-7l1-6z"/></svg></div>
+      <h3>Lightweight &amp; fast</h3>
+      <p>Built directly on Fabric with a minimal footprint, so it stays out of the way of your game's performance.</p>
+    </div>
+    <div class="feature reveal">
+      <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 20h8M12 18v2"/></svg></div>
+      <h3>Fully open source</h3>
+      <p>Every line is public. Read it, fork it, or build on top of it — nothing is hidden behind the download.</p>
+    </div>
+    <div class="feature reveal">
+      <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></div>
+      <h3>Deeply configurable</h3>
+      <p>Hundreds of modules and settings, tuned per-world, so every session looks and plays exactly how you want.</p>
+    </div>
+  </div>
+
+  <section id="downloads">
+    <div class="section-head reveal">
+      <div class="section-tag">Downloads</div>
+      <h2>Get PUG Client</h2>
+      <p>Grab the latest build below. Only for Fabric — the file downloads directly from this page, nothing to sign in for.</p>
+    </div>
+
+    <div class="dl-card primary reveal">
+      <div class="dl-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      </div>
+      <div class="dl-body" id="primaryDlBody">
+        <div class="dl-title">PUG Client — 1.21 · v7.46.6 <span class="dl-badge">Fabric only</span></div>
+        <div class="dl-sub mono">pug-client-7.46.6-mc1.21.jar · 1.7 MB</div>
+        <div class="dl-progress mono" id="dlProgress">0%</div>
+      </div>
+      <button class="dl-cta" id="downloadBtn" type="button">
+        <span class="fill" id="dlFill" aria-hidden="true"></span>
+        <svg class="icon-dl" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        <span class="spinner" aria-hidden="true"></span>
+        <span id="dlLabel">Download</span>
+      </button>
+    </div>
+    <p class="dl-note" id="manualDlWrap" style="margin-top:-6px; margin-bottom:22px;">Download didn't start automatically? <a id="manualDlLink" href="pug-client-7.46.6-mc1.21-inj.jar"" download="pug-client-7.46.6-mc1.21-inj.jar"">Click here to save it directly.</a></p>
+
+    <div class="av-notice reveal">
+      <div class="av-notice-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
+      </div>
+      <div>
+        <h4>Read this before you download</h4>
+        <p>Clicking "Download" above will open a short terms prompt — including a note on antivirus false positives — that you'll need to agree to first.</p>
+      </div>
+    </div>
+
+    <p class="dl-note reveal">Looking for older versions of PUG? Check out the <a href="#" id="archiveLink">archive</a>.</p>
+  </section>
+
+  <section id="faq">
+    <div class="section-head reveal">
+      <div class="section-tag">FAQ</div>
+      <h2>Frequently asked</h2>
+    </div>
+    <div id="faqList">
+      <div class="faq-item reveal open">
+        <button class="faq-q" aria-expanded="true">Is PUG Client free?<span class="plus"></span></button>
+        <div class="faq-a"><p>Yes. PUG Client is completely free and open source — there's no premium tier and no paywalled features.</p></div>
+      </div>
+      <div class="faq-item reveal">
+        <button class="faq-q" aria-expanded="false">Which Minecraft versions are supported?<span class="plus"></span></button>
+        <div class="faq-a"><p>The current build targets Minecraft 1.21 on Fabric. Older Minecraft versions are available from the archive linked above.</p></div>
+      </div>
+      <div class="faq-item reveal">
+        <button class="faq-q" aria-expanded="false">Do I need Fabric installed first?<span class="plus"></span></button>
+        <div class="faq-a"><p>Yes — install the Fabric loader for your Minecraft version first, then drop the PUG Client jar into your mods folder.</p></div>
+      </div>
+      <div class="faq-item reveal">
+        <button class="faq-q" aria-expanded="false">Can I use this on any server?<span class="plus"></span></button>
+        <div class="faq-a"><p>Only where the server's rules allow client-side utility mods. Always check with server staff before joining with modules enabled.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="team">
+    <div class="section-head reveal">
+      <div class="section-tag">The Team</div>
+      <h2>Dev Team</h2>
+    </div>
+    <div class="team-grid">
+      <div class="team-card reveal">
+        <div class="avatar">P</div>
+        <div class="team-name">Pug333</div>
+        <div class="team-role">Owner / Head Developer</div>
+      </div>
+      <div class="team-card reveal">
+        <div class="avatar">E</div>
+        <div class="team-name">exotic</div>
+        <div class="team-role">Developer</div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="social-row">
+      <a class="social-pill" href="#" onclick="return notReal(this);">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.058a.082.082 0 0 0 .031.056 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.927 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.01c.12.099.246.197.373.291a.077.077 0 0 1-.006.128 12.3 12.3 0 0 1-1.873.892.076.076 0 0 0-.04.106c.36.698.772 1.363 1.225 1.994a.076.076 0 0 0 .084.028 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.055c.5-5.177-.838-9.674-3.549-13.662a.06.06 0 0 0-.031-.028z"/></svg>
+        Discord
+      </a>
+      <a class="social-pill" href="#" onclick="return notReal(this);">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.73.5.98 5.24.98 11.5c0 4.86 3.16 8.98 7.54 10.44.55.1.75-.24.75-.53v-2.05c-3.07.67-3.72-1.3-3.72-1.3-.5-1.28-1.23-1.62-1.23-1.62-1-.68.08-.67.08-.67 1.1.08 1.68 1.13 1.68 1.13.98 1.68 2.57 1.19 3.2.91.1-.71.38-1.2.7-1.47-2.45-.28-5.03-1.23-5.03-5.46 0-1.2.43-2.19 1.13-2.96-.11-.28-.49-1.4.11-2.93 0 0 .92-.3 3.02 1.13a10.5 10.5 0 0 1 5.5 0c2.1-1.43 3.02-1.13 3.02-1.13.6 1.53.22 2.65.11 2.93.7.77 1.13 1.76 1.13 2.96 0 4.24-2.59 5.17-5.06 5.44.39.34.74 1.01.74 2.04v3.03c0 .29.2.64.76.53A10.53 10.53 0 0 0 23 11.5C23 5.24 18.27.5 12 .5z"/></svg>
+        GitHub
+      </a>
+      <a class="social-pill" href="#" onclick="return notReal(this);">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M23.5 6.2a3.02 3.02 0 0 0-2.12-2.14C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.38.56A3.02 3.02 0 0 0 .5 6.2 31.6 31.6 0 0 0 0 12a31.6 31.6 0 0 0 .5 5.8 3.02 3.02 0 0 0 2.12 2.14C4.5 20.5 12 20.5 12 20.5s7.5 0 9.38-.56a3.02 3.02 0 0 0 2.12-2.14A31.6 31.6 0 0 0 24 12a31.6 31.6 0 0 0-.5-5.8zM9.6 15.6V8.4l6.3 3.6-6.3 3.6z"/></svg>
+        YouTube
+      </a>
+      <a class="social-pill" href="#" onclick="return notReal(this);">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7.076 21.337H2.47V8.53h4.606v12.807zM4.77 6.727a2.67 2.67 0 1 1 0-5.339 2.67 2.67 0 0 1 0 5.339zM21.5 21.337h-4.594v-6.235c0-1.487-.03-3.398-2.07-3.398-2.073 0-2.39 1.618-2.39 3.29v6.343H7.86V8.53h4.41v1.75h.062c.615-1.164 2.117-2.39 4.36-2.39 4.663 0 5.523 3.07 5.523 7.06v6.387z"/></svg>
+        Donate
+      </a>
+    </div>
+    <p class="copy">Copyright © 2026 PUG Development<br>All Rights Reserved.</p>
+  </footer>
+</main>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<div class="modal-overlay" id="termsModal" role="dialog" aria-modal="true" aria-labelledby="termsTitle">
+  <div class="modal-card">
+    <div class="modal-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 0 0 1.946-.806 3.42 3.42 0 0 1 4.438 0 3.42 3.42 0 0 0 1.946.806 3.42 3.42 0 0 1 3.138 3.138 3.42 3.42 0 0 0 .806 1.946 3.42 3.42 0 0 1 0 4.438 3.42 3.42 0 0 0-.806 1.946 3.42 3.42 0 0 1-3.138 3.138 3.42 3.42 0 0 0-1.946.806 3.42 3.42 0 0 1-4.438 0 3.42 3.42 0 0 0-1.946-.806 3.42 3.42 0 0 1-3.138-3.138 3.42 3.42 0 0 0-.806-1.946 3.42 3.42 0 0 1 0-4.438 3.42 3.42 0 0 0 .806-1.946 3.42 3.42 0 0 1 3.138-3.138z"/></svg>
+    </div>
+    <h3 id="termsTitle">Before you download</h3>
+    <p class="modal-sub">Please read and accept the terms below to continue.</p>
+
+    <div class="modal-terms">
+      <h5>Antivirus false positives</h5>
+      <p>PUG Client hooks keybinds, reads game memory, and modifies network packets to add features — the same low-level behavior antivirus heuristics use to flag real malware. Tools like Windows Defender or SmartScreen may warn you even though the file isn't malicious. You can verify it yourself on <a href="https://www.virustotal.com" target="_blank" rel="noopener">VirusTotal</a>, or submit a false-positive report to your AV vendor.</p>
+
+      <h5>Server rules &amp; anti-cheat</h5>
+      <p>Many multiplayer servers explicitly ban utility/cheat clients like this one. Using it on a server that prohibits client modifications breaks that server's rules and can get your account banned there. This site does not help bypass anti-cheat detection — use is entirely at your own risk and subject to each server's own rules.</p>
+
+      <h5>No warranty</h5>
+      <p>This software is provided "as is," free and open source under GPL-3.0, with no warranty of any kind. You're responsible for how you use it.</p>
+    </div>
+
+    <label class="modal-check">
+      <input type="checkbox" id="termsCheck">
+      I have read and agree to the terms above, including the antivirus and server-rules notes.
+    </label>
+
+    <div class="modal-actions">
+      <button class="btn-secondary" id="termsCancel" type="button">Cancel</button>
+      <a class="btn-primary is-disabled" id="termsAgree" href="pug-client-7.46.6-mc1.21-inj.jar" download="pug-client-7.46.6-mc1.21-inj.jar" aria-disabled="true" tabindex="-1">Agree &amp; Download</a>
+    </div>
+  </div>
+</div>
+
+<script>
+  /* ---------- background field ---------- */
+  const field = document.getElementById('meteor-field');
+  for(let i=0;i<80;i++){
+    const s = document.createElement('div');
+    const big = Math.random() > 0.85;
+    s.className = 'star' + (big ? ' big' : '');
+    s.style.left = Math.random()*100+'%';
+    s.style.top = Math.random()*100+'%';
+    const o = (Math.random()*0.6+0.15).toFixed(2);
+    s.style.setProperty('--o', o);
+    s.style.opacity = o;
+    s.style.animation = `twinkle ${(3+Math.random()*4).toFixed(1)}s ease-in-out infinite`;
+    s.style.animationDelay = (Math.random()*4)+'s';
+    field.appendChild(s);
+  }
+  for(let i=0;i<6;i++){
+    const m = document.createElement('div');
+    m.className='meteor';
+    m.style.top = (Math.random()*40)+'%';
+    m.style.left = (60+Math.random()*35)+'%';
+    m.style.animationDuration = (3+Math.random()*4)+'s';
+    m.style.animationDelay = (Math.random()*6)+'s';
+    field.appendChild(m);
+  }
+
+  /* ---------- sticky nav + mobile menu ---------- */
+  const navWrap = document.getElementById('navWrap');
+  window.addEventListener('scroll', () => {
+    navWrap.classList.toggle('scrolled', window.scrollY > 8);
+  });
+  const menuBtn = document.getElementById('menuBtn');
+  menuBtn.addEventListener('click', () => {
+    const open = navWrap.classList.toggle('open');
+    menuBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+  document.querySelectorAll('.mobile-menu a').forEach(a => {
+    a.addEventListener('click', () => { navWrap.classList.remove('open'); menuBtn.setAttribute('aria-expanded','false'); });
+  });
+
+  /* ---------- reveal on scroll ---------- */
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); } });
+  }, { threshold: 0.12 });
+  document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+
+
+  /* ---------- toast helper ---------- */
+  let toastTimer;
+  function showToast(msg){
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
+  }
+  function notReal(el){
+    showToast('This is a demo clone — no live destination configured.');
+    return false;
+  }
+  document.getElementById('archiveLink').addEventListener('click', (e) => { e.preventDefault(); showToast('Archive page not included in this demo.'); });
+
+  /* ---------- FAQ accordion ---------- */
+  document.querySelectorAll('.faq-item').forEach(item => {
+    const q = item.querySelector('.faq-q');
+    const a = item.querySelector('.faq-a');
+    const setState = (open) => {
+      item.classList.toggle('open', open);
+      q.setAttribute('aria-expanded', open ? 'true' : 'false');
+      a.style.maxHeight = open ? a.scrollHeight + 'px' : '0px';
+    };
+    setState(item.classList.contains('open'));
+    q.addEventListener('click', () => setState(!item.classList.contains('open')));
+    window.addEventListener('resize', () => { if(item.classList.contains('open')) a.style.maxHeight = a.scrollHeight + 'px'; });
+  });
+
+  /* ---------- terms modal + gated download ---------- */
+  const downloadBtn = document.getElementById('downloadBtn');
+  const dlLabel = document.getElementById('dlLabel');
+  const termsModal = document.getElementById('termsModal');
+  const termsCheck = document.getElementById('termsCheck');
+  const termsAgree = document.getElementById('termsAgree');
+  const termsCancel = document.getElementById('termsCancel');
+  let lastFocused = null;
+
+  function getFocusable(){
+    return Array.from(termsModal.querySelectorAll('button, [href], input, [tabindex]:not([tabindex="-1"])'))
+      .filter(el => !el.disabled && el.getAttribute('aria-disabled') !== 'true' && el.offsetParent !== null);
+  }
+
+  function openModal(){
+    lastFocused = document.activeElement;
+    termsModal.classList.add('show');
+    document.body.style.overflow = 'hidden';
+    // send focus into the dialog once the open transition starts
+    requestAnimationFrame(() => termsCheck.focus());
+  }
+  function closeModal(){
+    termsModal.classList.remove('show');
+    document.body.style.overflow = '';
+    if(lastFocused && typeof lastFocused.focus === 'function') lastFocused.focus();
+  }
+
+  downloadBtn.addEventListener('click', openModal);
+  termsCancel.addEventListener('click', closeModal);
+  termsModal.addEventListener('click', (e) => { if(e.target === termsModal) closeModal(); });
+  document.addEventListener('keydown', (e) => {
+    if(!termsModal.classList.contains('show')) return;
+    if(e.key === 'Escape'){ closeModal(); return; }
+    // simple focus trap while the dialog is open
+    if(e.key === 'Tab'){
+      const list = getFocusable();
+      if(!list.length) return;
+      const first = list[0], last = list[list.length - 1];
+      if(e.shiftKey && document.activeElement === first){ e.preventDefault(); last.focus(); }
+      else if(!e.shiftKey && document.activeElement === last){ e.preventDefault(); first.focus(); }
+    }
+  });
+
+  function setAgreeEnabled(enabled){
+    termsAgree.classList.toggle('is-disabled', !enabled);
+    termsAgree.setAttribute('aria-disabled', String(!enabled));
+    termsAgree.tabIndex = enabled ? 0 : -1;
+  }
+
+  termsCheck.addEventListener('change', () => {
+    setAgreeEnabled(termsCheck.checked);
+  });
+
+  // termsAgree is now a real <a href download> element — clicking it (a genuine,
+  // trusted user click) IS the download trigger. No synthetic .click() needed,
+  // which is what browsers tend to silently ignore for local file:// pages.
+  const dlFill = document.getElementById('dlFill');
+  const dlProgress = document.getElementById('dlProgress');
+  const primaryDlBody = document.getElementById('primaryDlBody');
+
+  termsAgree.addEventListener('click', (e) => {
+    if(termsAgree.classList.contains('is-disabled')){ e.preventDefault(); return; }
+
+    closeModal();
+    termsCheck.checked = false;
+    setAgreeEnabled(false);
+
+    // brief loading -> success sequence on the download button itself,
+    // with a real percentage fill instead of just a spinner
+    downloadBtn.classList.add('is-loading');
+    dlLabel.textContent = 'Preparing…';
+    primaryDlBody.classList.add('showing-progress');
+    dlFill.style.width = '0%';
+
+    const duration = 650;
+    const start = performance.now();
+    function tick(now){
+      const p = Math.min((now - start) / duration, 1);
+      const pct = Math.round(p * 100);
+      dlFill.style.width = pct + '%';
+      dlProgress.textContent = pct + '%';
+      if(p < 1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+
+    setTimeout(() => {
+      downloadBtn.classList.remove('is-loading');
+      downloadBtn.classList.add('is-done');
+      dlLabel.textContent = 'Downloaded';
+      primaryDlBody.classList.remove('showing-progress');
+      dlFill.style.width = '0%';
+      showToast('Downloading "C:\Users\Pug\Downloads\pug-client-7.46.6-mc1.21-inj.jar"…');
+      setTimeout(() => {
+        downloadBtn.classList.remove('is-done');
+        dlLabel.textContent = 'Download';
+      }, 2600);
+    }, duration);
+  });
+</script>
+
+</body>
+</html>
